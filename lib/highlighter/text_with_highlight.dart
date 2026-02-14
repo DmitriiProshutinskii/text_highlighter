@@ -6,14 +6,12 @@ class TextHighlighted extends StatefulWidget {
   final List<String> texts;
   final List<int> indexes;
   final TextStyle style;
-  final TextStyle highlightedStyle;
   final Color highlightColor;
   const TextHighlighted({
     super.key,
     required this.texts,
     required this.indexes,
     required this.style,
-    required this.highlightedStyle,
     required this.highlightColor,
   });
 
@@ -29,13 +27,8 @@ class _TextHighlightedState extends State<TextHighlighted> {
         final maxWidth = constraints.maxWidth;
 
         final boxes = widget.indexes.map(
-          (index) => getPositionsPerLine(
-            widget.texts,
-            index,
-            widget.style,
-            widget.highlightedStyle,
-            maxWidth,
-          ),
+          (index) =>
+              getPositionsPerLine(widget.texts, index, widget.style, maxWidth),
         );
 
         return Stack(

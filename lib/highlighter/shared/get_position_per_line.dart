@@ -6,7 +6,6 @@ List<OffsetPair> getPositionsPerLine(
   List<String> texts,
   int index,
   TextStyle style,
-  TextStyle highlightedStyle,
   double maxWidth, {
   TextDirection textDirection = TextDirection.ltr,
 }) {
@@ -17,7 +16,7 @@ List<OffsetPair> getPositionsPerLine(
       .mapIndexed(
         (i, element) => TextSpan(
           text: element,
-          style: i == index ? highlightedStyle : style,
+          style: style,
           semanticsIdentifier: 'selected_text_$index',
         ),
       )
