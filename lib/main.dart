@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_highlighter/highlighter/text_with_highlight.dart';
 
 void main() {
   runApp(const MyApp());
@@ -108,6 +109,16 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            TextHighlighted(
+              texts: [
+                'Hello world.',
+                'I am a developer that will highlight this text.',
+              ],
+              indexes: [1],
+              style: Theme.of(context).textTheme.headlineMedium!,
+              highlightedStyle: Theme.of(context).textTheme.headlineMedium!,
+              highlightColor: Colors.red,
             ),
           ],
         ),
