@@ -11,7 +11,7 @@ List<OffsetPair> getPositionsPerLine(
 }) {
   assert(index >= 0 && index < texts.length);
 
-  // 1. Собираем полный текст без разделителей
+  // 1. Build the full text without separators
   final fullText = texts
       .mapIndexed(
         (i, element) => TextSpan(
@@ -22,7 +22,7 @@ List<OffsetPair> getPositionsPerLine(
       )
       .toList();
 
-  // 2. Создаём TextPainter
+  // 2. Create a TextPainter
   final tp = TextPainter(
     text: TextSpan(children: fullText),
     textDirection: textDirection,
@@ -34,13 +34,13 @@ List<OffsetPair> getPositionsPerLine(
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
 
-    // Индекс первого символа в строке
+    // Index of the first character on the line
     final startOffset = tp.getPositionForOffset(
       Offset(0, line.baseline - line.ascent),
     );
     final startIndex = startOffset.offset;
 
-    // Индекс конца строки
+    // Index of the end of the line
     final endOffset = tp.getPositionForOffset(
       Offset(tp.width, line.baseline - line.ascent),
     );
@@ -50,26 +50,26 @@ List<OffsetPair> getPositionsPerLine(
     print('Текст: "${full.substring(startIndex, endIndex)}"');
   }
 
-  // 3. Индексы начала и конца нужной фразы
+  // 3. Start and end indexes of the target phrase
   int start = 0;
   for (int i = 0; i < index; i++) {
     start += texts[i].length;
   }
   final int end = start + texts[index].length;
 
-  // 4. Получаем прямоугольники (по строкам) для фразы
+  // 4. Get phrase rectangles split by lines
   final boxes = tp.getBoxesForSelection(
     TextSelection(baseOffset: start, extentOffset: end),
   );
 
-  // 5. Преобразуем каждый TextBox в OffsetPair
+  // 5. Convert each TextBox into an OffsetPair
   if (boxes.isNotEmpty) {
     return boxes.map((b) {
       return OffsetPair(Offset(b.left, b.top), Offset(b.right, b.bottom));
     }).toList();
   }
 
-  // 6. fallback (если боксы пусты)
+  // 6. Fallback when boxes are empty
   final caretPrototype = Rect.fromLTWH(0, 0, 0, tp.preferredLineHeight);
   final Offset startCaret = tp.getOffsetForCaret(
     TextPosition(offset: start),

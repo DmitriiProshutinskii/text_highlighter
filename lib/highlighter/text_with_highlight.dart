@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_highlighter/highlighter/helpers/highlighted_text.dart';
 import 'package:flutter_highlighter/highlighter/shared/get_position_per_line.dart';
+import 'package:flutter_highlighter/highlighter/shared/offset_pair.dart';
 
 class TextHighlighted extends StatefulWidget {
   final List<String> texts;
@@ -30,10 +31,22 @@ class _TextHighlightedState extends State<TextHighlighted> {
           (index) =>
               getPositionsPerLine(widget.texts, index, widget.style, maxWidth),
         );
+        final boxes2 = <List<OffsetPair>>[];
+        for (var box in boxes) {
+          if (box.length > 1) {
+            if (box[0].first.dx > (box[1].last.dx - 10)) {
+              boxes2.add([box[0]]);
+              box.removeAt(0);
+              boxes2.add(box);
+            }
+          } else {
+            boxes2.add(box);
+          }
+        }
 
         return Stack(
           children: [
-            for (var box in boxes)
+            for (var box in boxes2)
               CustomPaint(
                 painter: HighlightedTextPainterTable(
                   boxes: box,

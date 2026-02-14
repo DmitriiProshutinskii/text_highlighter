@@ -12,7 +12,6 @@ class HighlightedTextPainterTable extends CustomPainter {
     required this.highlightColor,
   });
 
-  // TODO: Проверить Кейс, где начало второго позже конца первого
   @override
   void paint(Canvas canvas, Size size) {
     final points = allPointsToConnect(boxes);
@@ -49,10 +48,10 @@ class HighlightedTextPainterTable extends CustomPainter {
   }
 }
 
-// Метод таблиц
+// Table-based method
 List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
-  // 1. Создадим таблицу со всеми точками
-  // 1.1 Считаем количество уникальных точек по X и Y
+  // 1. Build a table with all points
+  // 1.1 Count unique points by X and Y
   final Set<double> uniqueX = {};
   final Set<double> uniqueY = {};
   for (var box in boxes) {
@@ -65,7 +64,7 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
   final uniqueXList = uniqueX.toList()..sort();
   final uniqueYList = uniqueY.toList()..sort();
 
-  // 1.2 Создаем таблицу
+  // 1.2 Create the table
   final List<List<Offset?>> matrix = List.generate(
     uniqueYList.length,
     (index) => List.generate(uniqueXList.length, (index) => null),
@@ -84,10 +83,11 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
     }
   }
 
-  // 2. Собираем точки вместе
-  // 2.1 Найти все точки, которые на yIndex = 0 (верхняя граница)
+  // 2. Collect points together
+  // 2.1 Find all points where yIndex = 0 (top boundary)
   final topPoints = matrix[0].where((e) => e != null).map((e) => e!);
-  // 2.2 Найти все точки, которые last в массиве (идем по столбцу сверху вниз по правому краю). Это значит, что мы итерируемся по yIndex, но берем xIndex точки, что ближе к концу массива
+  // 2.2 Find all last points in each row (go top to bottom along the right edge).
+  // This means we iterate by yIndex and take xIndex points near the end.
   final indexesToRemove = <int>[];
 
   print('topPoints: $topPoints');
@@ -112,13 +112,14 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
     rightPoints.removeAt(i);
   }
   print('rightPoints: $rightPoints');
-  // 2.3 Найти все точки, которые на yIndex = maxY (нижняя граница)
+  // 2.3 Find all points where yIndex = maxY (bottom boundary)
   final bottomPoints = matrix[matrix.length - 1]
       .where((e) => e != null)
       .map((e) => e!)
       .toList()
       .reversed;
-  // 2.4 Найти все точки, которые first в массиве (идем по столбцу снизу вверх по левому краю). Это значит, что мы итерируемся по yIndex, но берем xIndex точки, что ближе к началу массива
+  // 2.4 Find all first points in each row (go bottom to top along the left edge).
+  // This means we iterate by yIndex and take xIndex points near the beginning.
   final leftPoints = matrix.reversed
       .map((e) => e.firstWhere((e) => e != null))
       .nonNulls
