@@ -4,36 +4,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_highlighter/highlighter/shared/offset_pair.dart';
 import 'package:vector_math/vector_math.dart';
 
-class HighlightedTextPainterTable extends CustomPainter {
-  final List<OffsetPair> boxes;
+class HighlightContourPainter extends CustomPainter {
+  final List<HighlightBounds> bounds;
   final Color highlightColor;
-  const HighlightedTextPainterTable({
-    required this.boxes,
+
+  const HighlightContourPainter({
+    required this.bounds,
     required this.highlightColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final points = allPointsToConnect(boxes);
-    final cutedEgestOfPoints = cutEgestOfPoints(points, false);
+    final contourPoints = buildContourPoints(bounds);
+    final roundedContourPoints = roundContourCorners(contourPoints);
     final Path path = Path();
-    path.moveTo(cutedEgestOfPoints.first.$1.dx, cutedEgestOfPoints.first.$1.dy);
+    path.moveTo(
+      roundedContourPoints.first.$1.dx,
+      roundedContourPoints.first.$1.dy,
+    );
 
     void drawArc(int index) {
-      final nextIndex = index < cutedEgestOfPoints.length - 1 ? index + 1 : 0;
+      final nextIndex = index < roundedContourPoints.length - 1 ? index + 1 : 0;
       path.arcToPoint(
         Offset(
-          cutedEgestOfPoints[nextIndex].$1.dx,
-          cutedEgestOfPoints[nextIndex].$1.dy,
+          roundedContourPoints[nextIndex].$1.dx,
+          roundedContourPoints[nextIndex].$1.dy,
         ),
-        radius: Radius.circular(6),
-        clockwise: cutedEgestOfPoints[index].$2 != true,
+        radius: const Radius.circular(6),
+        clockwise: roundedContourPoints[index].$2 != true,
       );
     }
 
     drawArc(0);
-    for (int i = 2; i < cutedEgestOfPoints.length; i = i + 2) {
-      path.lineTo(cutedEgestOfPoints[i].$1.dx, cutedEgestOfPoints[i].$1.dy);
+    for (int i = 2; i < roundedContourPoints.length; i = i + 2) {
+      path.lineTo(roundedContourPoints[i].$1.dx, roundedContourPoints[i].$1.dy);
       drawArc(i);
     }
 
@@ -49,16 +53,16 @@ class HighlightedTextPainterTable extends CustomPainter {
 }
 
 // Table-based method
-List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
+List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
   // 1. Build a table with all points
   // 1.1 Count unique points by X and Y
   final Set<double> uniqueX = {};
   final Set<double> uniqueY = {};
-  for (var box in boxes) {
-    uniqueX.add(box.first.dx);
-    uniqueX.add(box.last.dx);
-    uniqueY.add(box.first.dy);
-    uniqueY.add(box.last.dy);
+  for (var box in bounds) {
+    uniqueX.add(box.topLeft.dx);
+    uniqueX.add(box.bottomRight.dx);
+    uniqueY.add(box.topLeft.dy);
+    uniqueY.add(box.bottomRight.dy);
   }
 
   final uniqueXList = uniqueX.toList()..sort();
@@ -69,14 +73,14 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
     uniqueYList.length,
     (index) => List.generate(uniqueXList.length, (index) => null),
   );
-  for (var box in boxes) {
-    final fourPoints = [
-      box.first,
-      Offset(box.last.dx, box.first.dy),
-      box.last,
-      Offset(box.first.dx, box.last.dy),
+  for (var box in bounds) {
+    final corners = [
+      box.topLeft,
+      Offset(box.bottomRight.dx, box.topLeft.dy),
+      box.bottomRight,
+      Offset(box.topLeft.dx, box.bottomRight.dy),
     ];
-    for (var point in fourPoints) {
+    for (var point in corners) {
       final xIndex = uniqueXList.indexOf(point.dx);
       final yIndex = uniqueYList.indexOf(point.dy);
       matrix[yIndex][xIndex] = point;
@@ -88,9 +92,7 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
   final topPoints = matrix[0].where((e) => e != null).map((e) => e!);
   // 2.2 Find all last points in each row (go top to bottom along the right edge).
   // This means we iterate by yIndex and take xIndex points near the end.
-  final indexesToRemove = <int>[];
-
-  print('topPoints: $topPoints');
+  final rightIndexesToRemove = <int>[];
   final rightPoints = matrix
       .map((e) => e.lastWhere((e) => e != null))
       .nonNulls
@@ -104,14 +106,14 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
         rightPoints[i + 1].dy - diff,
       );
       if (rightPoints[i] == rightPoints[i + 1]) {
-        indexesToRemove.add(i);
+        rightIndexesToRemove.add(i);
       }
     }
   }
-  for (int i in indexesToRemove) {
+  for (int i in rightIndexesToRemove.reversed) {
     rightPoints.removeAt(i);
   }
-  print('rightPoints: $rightPoints');
+
   // 2.3 Find all points where yIndex = maxY (bottom boundary)
   final bottomPoints = matrix[matrix.length - 1]
       .where((e) => e != null)
@@ -124,6 +126,7 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
       .map((e) => e.firstWhere((e) => e != null))
       .nonNulls
       .toList();
+  final leftIndexesToRemove = <int>[];
   for (int i = 1; i < leftPoints.length - 1; i++) {
     if (leftPoints[i].dx != leftPoints[i + 1].dx) {
       final diff = (leftPoints[i + 1].dy - leftPoints[i].dy).abs() / 2;
@@ -133,58 +136,61 @@ List<Offset> allPointsToConnect(List<OffsetPair> boxes) {
         leftPoints[i + 1].dy + diff,
       );
       if (leftPoints[i] == leftPoints[i + 1]) {
-        indexesToRemove.add(i);
+        leftIndexesToRemove.add(i);
       }
     }
   }
-  for (int i in indexesToRemove) {
+  for (int i in leftIndexesToRemove.reversed) {
     leftPoints.removeAt(i);
   }
-  final result = [...topPoints, ...rightPoints, ...bottomPoints, ...leftPoints];
-  final set = <Offset>{};
-  final newResult = <Offset>[];
-  for (var point in result) {
-    if (!set.contains(point)) {
-      set.add(point);
-      newResult.add(point);
+  final perimeterPoints = [
+    ...topPoints,
+    ...rightPoints,
+    ...bottomPoints,
+    ...leftPoints,
+  ];
+  final uniquePoints = <Offset>{};
+  final mergedPathPoints = <Offset>[];
+  for (var point in perimeterPoints) {
+    if (!uniquePoints.contains(point)) {
+      uniquePoints.add(point);
+      mergedPathPoints.add(point);
     }
   }
 
-  final newResult2 = <Offset>[];
-  for (int i = 0; i < newResult.length; i++) {
-    int nextIndex = i < newResult.length - 1 ? i + 1 : 0;
-    int prevIndex = i > 0 ? i - 1 : newResult.length - 1;
+  final simplifiedPathPoints = <Offset>[];
+  for (int i = 0; i < mergedPathPoints.length; i++) {
+    int nextIndex = i < mergedPathPoints.length - 1 ? i + 1 : 0;
+    int prevIndex = i > 0 ? i - 1 : mergedPathPoints.length - 1;
     // Line lying on the same x
-    if (newResult[i].dx == newResult[nextIndex].dx &&
-        newResult[i].dx == newResult[prevIndex].dx) {
+    if (mergedPathPoints[i].dx == mergedPathPoints[nextIndex].dx &&
+        mergedPathPoints[i].dx == mergedPathPoints[prevIndex].dx) {
       continue;
     }
-    if (newResult[i].dy == newResult[nextIndex].dy &&
-        newResult[i].dy == newResult[prevIndex].dy) {
+    if (mergedPathPoints[i].dy == mergedPathPoints[nextIndex].dy &&
+        mergedPathPoints[i].dy == mergedPathPoints[prevIndex].dy) {
       continue;
     }
-    newResult2.add(newResult[i]);
+    simplifiedPathPoints.add(mergedPathPoints[i]);
   }
-  return newResult2;
+  return simplifiedPathPoints;
 }
 
-List<(Offset, bool?)> cutEgestOfPoints(
-  List<Offset> points, [
-  bool doNotDoIt = false,
-]) {
-  if (doNotDoIt) {
-    return points.map((e) => (e, null)).toList();
+List<(Offset, bool?)> roundContourCorners(List<Offset> contourPoints) {
+  if (contourPoints.isEmpty) {
+    return [];
   }
-  // Point + isClocwise (if null -- this is the line, not arc)
-  final result = <(Offset, bool?)>[];
-  for (int i = 0; i < points.length; i++) {
-    final point = Vector2(points[i].dx, points[i].dy);
+
+  // Tuple fields: point + isClockwise (null means draw a straight segment).
+  final roundedPoints = <(Offset, bool?)>[];
+  for (int i = 0; i < contourPoints.length; i++) {
+    final point = Vector2(contourPoints[i].dx, contourPoints[i].dy);
     final prevPoint = i > 0
-        ? Vector2(points[i - 1].dx, points[i - 1].dy)
-        : Vector2(points.last.dx, points.last.dy);
-    final nextPoint = i < points.length - 1
-        ? Vector2(points[i + 1].dx, points[i + 1].dy)
-        : Vector2(points.first.dx, points.first.dy);
+        ? Vector2(contourPoints[i - 1].dx, contourPoints[i - 1].dy)
+        : Vector2(contourPoints.last.dx, contourPoints.last.dy);
+    final nextPoint = i < contourPoints.length - 1
+        ? Vector2(contourPoints[i + 1].dx, contourPoints[i + 1].dy)
+        : Vector2(contourPoints.first.dx, contourPoints.first.dy);
 
     final prevVector = (prevPoint - point).normalized();
     final nextVector = (nextPoint - point).normalized();
@@ -197,8 +203,8 @@ List<(Offset, bool?)> cutEgestOfPoints(
     final vectorToNext = pointCloseToNext - pointCloseToPrev;
     final crossProduct = vectorToCurrent.cross(vectorToNext);
     final isClockwise = crossProduct < 0;
-    result.add((Offset(pointCloseToPrev.x, pointCloseToPrev.y), isClockwise));
-    result.add((Offset(pointCloseToNext.x, pointCloseToNext.y), null));
+    roundedPoints.add((Offset(pointCloseToPrev.x, pointCloseToPrev.y), isClockwise));
+    roundedPoints.add((Offset(pointCloseToNext.x, pointCloseToNext.y), null));
   }
-  return result;
+  return roundedPoints;
 }

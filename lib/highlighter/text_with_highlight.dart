@@ -3,53 +3,38 @@ import 'package:flutter_highlighter/highlighter/helpers/highlighted_text.dart';
 import 'package:flutter_highlighter/highlighter/shared/get_position_per_line.dart';
 import 'package:flutter_highlighter/highlighter/shared/offset_pair.dart';
 
-class TextHighlighted extends StatefulWidget {
-  final List<String> texts;
-  final List<int> indexes;
-  final TextStyle style;
+class HighlightedSegmentsText extends StatefulWidget {
+  final List<String> textSegments;
+  final List<int> highlightedSegmentIndexes;
+  final TextStyle textStyle;
   final Color highlightColor;
-  const TextHighlighted({
+
+  const HighlightedSegmentsText({
     super.key,
-    required this.texts,
-    required this.indexes,
-    required this.style,
+    required this.textSegments,
+    required this.highlightedSegmentIndexes,
+    required this.textStyle,
     required this.highlightColor,
   });
 
   @override
-  State<TextHighlighted> createState() => _TextHighlightedState();
+  State<HighlightedSegmentsText> createState() =>
+      _HighlightedSegmentsTextState();
 }
 
-class _TextHighlightedState extends State<TextHighlighted> {
+class _HighlightedSegmentsTextState extends State<HighlightedSegmentsText> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-
-        final boxes = widget.indexes.map(
-          (index) =>
-              getPositionsPerLine(widget.texts, index, widget.style, maxWidth),
-        );
-        final boxes2 = <List<OffsetPair>>[];
-        for (var box in boxes) {
-          if (box.length > 1) {
-            if (box[0].first.dx > (box[1].last.dx - 10)) {
-              boxes2.add([box[0]]);
-              box.removeAt(0);
-              boxes2.add(box);
-            }
-          } else {
-            boxes2.add(box);
-          }
-        }
-
         return Stack(
           children: [
-            for (var box in boxes2)
+            for (var bounds in _buildHighlightBounds(
+              maxWidth: constraints.maxWidth,
+            ))
               CustomPaint(
-                painter: HighlightedTextPainterTable(
-                  boxes: box,
+                painter: HighlightContourPainter(
+                  bounds: bounds,
                   highlightColor: widget.highlightColor,
                 ),
               ),
@@ -57,8 +42,11 @@ class _TextHighlightedState extends State<TextHighlighted> {
               ignoring: true,
               child: RichText(
                 text: TextSpan(
-                  children: widget.texts
-                      .map((e) => TextSpan(text: e, style: widget.style))
+                  children: widget.textSegments
+                      .map(
+                        (segment) =>
+                            TextSpan(text: segment, style: widget.textStyle),
+                      )
                       .toList(),
                 ),
               ),
@@ -68,21 +56,32 @@ class _TextHighlightedState extends State<TextHighlighted> {
       },
     );
   }
-}
 
-class TextLineInfo {
-  final int lineIndex;
-  final int startOffset;
-  final int endOffset;
-  final String text;
+  // Get boxes for each indexed text that the user wants to highlight
+  List<List<HighlightBounds>> _buildHighlightBounds({
+    required double maxWidth,
+  }) {
+    final highlightBoundsGroups = widget.highlightedSegmentIndexes.map(
+      (segmentIndex) => calculateHighlightBoundsPerLine(
+        widget.textSegments,
+        segmentIndex,
+        widget.textStyle,
+        maxWidth,
+      ),
+    );
 
-  TextLineInfo({
-    required this.lineIndex,
-    required this.startOffset,
-    required this.endOffset,
-    required this.text,
-  });
-
-  @override
-  String toString() => '[$lineIndex] "$text" ($startOffset–$endOffset)';
+    // Fix boxes where the first point is after the last point by 10px
+    final normalizedBoundsGroups = <List<HighlightBounds>>[];
+    for (var boundsGroup in highlightBoundsGroups) {
+      if (boundsGroup.length > 1 &&
+          boundsGroup[0].topLeft.dx > (boundsGroup[1].bottomRight.dx - 10)) {
+        normalizedBoundsGroups.add([boundsGroup[0]]);
+        boundsGroup.removeAt(0);
+        normalizedBoundsGroups.add(boundsGroup);
+      } else {
+        normalizedBoundsGroups.add(boundsGroup);
+      }
+    }
+    return normalizedBoundsGroups;
+  }
 }

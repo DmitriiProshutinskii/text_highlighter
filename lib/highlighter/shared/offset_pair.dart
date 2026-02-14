@@ -1,7 +1,8 @@
 import 'dart:ui';
 
-class OffsetPair {
-  final Offset first;
-  final Offset last;
-  OffsetPair(this.first, this.last);
+class HighlightBounds {
+  final Offset topLeft;
+  final Offset bottomRight;
+
+  const HighlightBounds(this.topLeft, this.bottomRight);
 }

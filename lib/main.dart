@@ -11,7 +11,7 @@ class HighlightDemoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TextHighlighted Demo',
+      title: 'Highlighted Segments Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
@@ -28,10 +28,10 @@ class HighlightDemoPage extends StatefulWidget {
 }
 
 class _HighlightDemoPageState extends State<HighlightDemoPage> {
-  final TextEditingController _textsController = TextEditingController(
+  final TextEditingController _segmentsController = TextEditingController(
     text: 'Hello world.\nI am a developer that will highlight this text.',
   );
-  final TextEditingController _indexesController = TextEditingController(
+  final TextEditingController _highlightIndexesController = TextEditingController(
     text: '1',
   );
 
@@ -48,26 +48,26 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
 
   @override
   void dispose() {
-    _textsController.dispose();
-    _indexesController.dispose();
+    _segmentsController.dispose();
+    _highlightIndexesController.dispose();
     super.dispose();
   }
 
-  List<String> get _texts {
-    final lines = _textsController.text.split('\n');
-    if (lines.isEmpty) {
+  List<String> get _textSegments {
+    final segmentLines = _segmentsController.text.split('\n');
+    if (segmentLines.isEmpty) {
       return [''];
     }
-    return lines;
+    return segmentLines;
   }
 
-  List<int> get _indexes {
-    final textCount = _texts.length;
-    return _indexesController.text
+  List<int> get _highlightedSegmentIndexes {
+    final segmentCount = _textSegments.length;
+    return _highlightIndexesController.text
         .split(',')
-        .map((value) => int.tryParse(value.trim()))
+        .map((rawIndex) => int.tryParse(rawIndex.trim()))
         .whereType<int>()
-        .where((index) => index >= 0 && index < textCount)
+        .where((index) => index >= 0 && index < segmentCount)
         .toList();
   }
 
@@ -81,7 +81,7 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
     final highlightColor = _highlightColors[_selectedColorName] ?? Colors.red;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('TextHighlighted Demo')),
+      appBar: AppBar(title: const Text('Highlighted Segments Demo')),
       body: SafeArea(
         child: Column(
           children: [
@@ -90,10 +90,10 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
                 padding: const EdgeInsets.all(16),
                 child: Align(
                   alignment: Alignment.topLeft,
-                  child: TextHighlighted(
-                    texts: _texts,
-                    indexes: _indexes,
-                    style: textStyle,
+                  child: HighlightedSegmentsText(
+                    textSegments: _textSegments,
+                    highlightedSegmentIndexes: _highlightedSegmentIndexes,
+                    textStyle: textStyle,
                     highlightColor: highlightColor.withAlpha(200),
                   ),
                 ),
@@ -149,20 +149,20 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: _textsController,
+                      controller: _segmentsController,
                       minLines: 2,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Texts (one item per line)',
+                        labelText: 'Text segments (one segment per line)',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: _indexesController,
+                      controller: _highlightIndexesController,
                       decoration: const InputDecoration(
-                        labelText: 'Highlighted indexes (comma separated)',
+                        labelText: 'Highlighted segment indexes (comma separated)',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
