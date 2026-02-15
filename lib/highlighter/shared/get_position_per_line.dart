@@ -42,12 +42,7 @@ List<HighlightBounds> calculateHighlightBoundsPerLine(
 
   // 5. Convert each TextBox into HighlightBounds
   if (selectionBoxes.isNotEmpty) {
-    return selectionBoxes.map((textBox) {
-      return HighlightBounds(
-        Offset(textBox.left, textBox.top),
-        Offset(textBox.right, textBox.bottom),
-      );
-    }).toList();
+    return selectionBoxes.map(HighlightBounds.fromTextBox).toList();
   }
 
   // 6. Fallback when selection boxes are empty
@@ -66,13 +61,15 @@ List<HighlightBounds> calculateHighlightBoundsPerLine(
     caretPrototype,
   );
 
-  return [
-    HighlightBounds(
-      Offset(selectionStartCaret.dx, selectionStartCaret.dy),
-      Offset(
-        selectionEndCaret.dx,
-        selectionEndCaret.dy + textPainter.preferredLineHeight,
-      ),
-    ),
-  ];
+  final topLeft = Offset(selectionStartCaret.dx, selectionStartCaret.dy);
+  final topRight = Offset(
+    selectionEndCaret.dx,
+    selectionEndCaret.dy + textPainter.preferredLineHeight,
+  );
+  final bottomRight = Offset(
+    selectionEndCaret.dx,
+    selectionEndCaret.dy + textPainter.preferredLineHeight,
+  );
+  final bottomLeft = Offset(selectionStartCaret.dx, selectionStartCaret.dy);
+  return [HighlightBounds(topLeft, topRight, bottomRight, bottomLeft)];
 }

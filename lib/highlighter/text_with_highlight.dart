@@ -74,7 +74,7 @@ class _HighlightedSegmentsTextState extends State<HighlightedSegmentsText> {
     final normalizedBoundsGroups = <List<HighlightBounds>>[];
     for (var boundsGroup in highlightBoundsGroups) {
       if (boundsGroup.length > 1 &&
-          boundsGroup[0].topLeft.dx > (boundsGroup[1].bottomRight.dx - 10)) {
+          boundsGroup[0].startX > (boundsGroup[1].endX - 10)) {
         normalizedBoundsGroups.add([boundsGroup[0]]);
         boundsGroup.removeAt(0);
         normalizedBoundsGroups.add(boundsGroup);

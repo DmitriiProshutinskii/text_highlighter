@@ -15,8 +15,8 @@ class HighlightContourPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final contourPoints = buildContourPoints(bounds);
-    final roundedContourPoints = roundContourCorners(contourPoints);
+    final contourPoints = _buildContourPoints(bounds);
+    final roundedContourPoints = _roundContourCorners(contourPoints);
     final Path path = Path();
     path.moveTo(
       roundedContourPoints.first.$1.dx,
@@ -53,7 +53,7 @@ class HighlightContourPainter extends CustomPainter {
 }
 
 // Table-based method
-List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
+List<Offset> _buildContourPoints(List<HighlightBounds> bounds) {
   // 1. Build a table with all points
   // 1.1 Count unique points by X and Y
   final Set<double> uniqueX = {};
@@ -74,13 +74,7 @@ List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
     (index) => List.generate(uniqueXList.length, (index) => null),
   );
   for (var box in bounds) {
-    final corners = [
-      box.topLeft,
-      Offset(box.bottomRight.dx, box.topLeft.dy),
-      box.bottomRight,
-      Offset(box.topLeft.dx, box.bottomRight.dy),
-    ];
-    for (var point in corners) {
+    for (var point in box.clockwisePoints) {
       final xIndex = uniqueXList.indexOf(point.dx);
       final yIndex = uniqueYList.indexOf(point.dy);
       matrix[yIndex][xIndex] = point;
@@ -149,6 +143,8 @@ List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
     ...bottomPoints,
     ...leftPoints,
   ];
+
+  // Filter out duplicate points
   final uniquePoints = <Offset>{};
   final mergedPathPoints = <Offset>[];
   for (var point in perimeterPoints) {
@@ -158,6 +154,7 @@ List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
     }
   }
 
+  // Filter out points that are on the same x or y axis
   final simplifiedPathPoints = <Offset>[];
   for (int i = 0; i < mergedPathPoints.length; i++) {
     int nextIndex = i < mergedPathPoints.length - 1 ? i + 1 : 0;
@@ -176,7 +173,7 @@ List<Offset> buildContourPoints(List<HighlightBounds> bounds) {
   return simplifiedPathPoints;
 }
 
-List<(Offset, bool?)> roundContourCorners(List<Offset> contourPoints) {
+List<(Offset, bool?)> _roundContourCorners(List<Offset> contourPoints) {
   if (contourPoints.isEmpty) {
     return [];
   }
@@ -199,11 +196,16 @@ List<(Offset, bool?)> roundContourCorners(List<Offset> contourPoints) {
     final pointCloseToNext = (nextVector * radius) + point;
     final pointCloseToPrev = (prevVector * radius) + point;
 
+    // Cross product to determine if the contour is clockwise or counterclockwise
     final vectorToCurrent = point - pointCloseToPrev;
     final vectorToNext = pointCloseToNext - pointCloseToPrev;
-    final crossProduct = vectorToCurrent.cross(vectorToNext);
-    final isClockwise = crossProduct < 0;
-    roundedPoints.add((Offset(pointCloseToPrev.x, pointCloseToPrev.y), isClockwise));
+    final crossProduct = vectorToNext.cross(vectorToCurrent);
+
+    final isClockwise = crossProduct > 0;
+    roundedPoints.add((
+      Offset(pointCloseToPrev.x, pointCloseToPrev.y),
+      isClockwise,
+    ));
     roundedPoints.add((Offset(pointCloseToNext.x, pointCloseToNext.y), null));
   }
   return roundedPoints;
