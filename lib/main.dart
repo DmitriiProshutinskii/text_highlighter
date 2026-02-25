@@ -11,6 +11,7 @@ class HighlightDemoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Highlighted Segments Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -31,9 +32,8 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
   final TextEditingController _segmentsController = TextEditingController(
     text: 'Hello world.\nI am a developer that will highlight this text.',
   );
-  final TextEditingController _highlightIndexesController = TextEditingController(
-    text: '1',
-  );
+  final TextEditingController _highlightIndexesController =
+      TextEditingController(text: '1');
 
   double _fontSize = 26;
   String _selectedColorName = 'Red';
@@ -81,7 +81,6 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
     final highlightColor = _highlightColors[_selectedColorName] ?? Colors.red;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Highlighted Segments Demo')),
       body: SafeArea(
         child: Column(
           children: [
@@ -162,7 +161,8 @@ class _HighlightDemoPageState extends State<HighlightDemoPage> {
                     TextField(
                       controller: _highlightIndexesController,
                       decoration: const InputDecoration(
-                        labelText: 'Highlighted segment indexes (comma separated)',
+                        labelText:
+                            'Highlighted segment indexes (comma separated)',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,

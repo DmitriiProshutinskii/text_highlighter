@@ -22,7 +22,6 @@ class HighlightContourPainter extends CustomPainter {
       roundedContourPoints.first.$1.dx,
       roundedContourPoints.first.$1.dy,
     );
-
     void drawArc(int index) {
       final nextIndex = index < roundedContourPoints.length - 1 ? index + 1 : 0;
       path.arcToPoint(
@@ -52,45 +51,37 @@ class HighlightContourPainter extends CustomPainter {
   }
 }
 
-// Table-based method
+// Clockwise perimeter traversal
 List<Offset> _buildContourPoints(List<HighlightBounds> bounds) {
-  // 1. Build a table with all points
-  // 1.1 Count unique points by X and Y
-  final Set<double> uniqueX = {};
-  final Set<double> uniqueY = {};
-  for (var box in bounds) {
-    uniqueX.add(box.topLeft.dx);
-    uniqueX.add(box.bottomRight.dx);
-    uniqueY.add(box.topLeft.dy);
-    uniqueY.add(box.bottomRight.dy);
+  // 1. Build a list with all points
+  // The main idea here is -- top and bottom points are the first and last bounds,
+  // right and left points are the points on the right and left sides of the bounds.
+  //
+  // So if we want to take upper border we need to take a) first bound (it sorted) and b) topLeft and topRight points of the first bound.
+  // Same for bottom border -- last bound and bottomLeft and bottomRight points of the last bound.
+  //
+  // For right we will take points with "right" suffix : topRight and bottomRight points
+  // Also we keep clockwise order for right and left points. Its critical for the algorithm to work correctly.
+  final List<Offset> topPoints = [bounds.first.topLeft, bounds.first.topRight];
+
+  final List<Offset> rightPoints = [];
+  for (int i = 0; i < bounds.length; i++) {
+    rightPoints.add(bounds[i].topRight);
+    rightPoints.add(bounds[i].bottomRight);
+  }
+  final List<Offset> bottomPoints = [
+    bounds.last.bottomLeft,
+    bounds.last.bottomRight,
+  ];
+  final List<Offset> leftPoints = [];
+  for (int i = bounds.length - 1; i >= 0; i--) {
+    leftPoints.add(bounds[i].bottomLeft);
+    leftPoints.add(bounds[i].topLeft);
   }
 
-  final uniqueXList = uniqueX.toList()..sort();
-  final uniqueYList = uniqueY.toList()..sort();
-
-  // 1.2 Create the table
-  final List<List<Offset?>> matrix = List.generate(
-    uniqueYList.length,
-    (index) => List.generate(uniqueXList.length, (index) => null),
-  );
-  for (var box in bounds) {
-    for (var point in box.clockwisePoints) {
-      final xIndex = uniqueXList.indexOf(point.dx);
-      final yIndex = uniqueYList.indexOf(point.dy);
-      matrix[yIndex][xIndex] = point;
-    }
-  }
-
-  // 2. Collect points together
-  // 2.1 Find all points where yIndex = 0 (top boundary)
-  final topPoints = matrix[0].where((e) => e != null).map((e) => e!);
-  // 2.2 Find all last points in each row (go top to bottom along the right edge).
-  // This means we iterate by yIndex and take xIndex points near the end.
+  // 2. Glue points together if they are on the same x axis.
+  // It means that we don't want to have space between highlighted text blocks.
   final rightIndexesToRemove = <int>[];
-  final rightPoints = matrix
-      .map((e) => e.lastWhere((e) => e != null))
-      .nonNulls
-      .toList();
   for (int i = 1; i < rightPoints.length - 1; i++) {
     if (rightPoints[i].dx != rightPoints[i + 1].dx) {
       final diff = (rightPoints[i + 1].dy - rightPoints[i].dy).abs() / 2;
@@ -108,18 +99,6 @@ List<Offset> _buildContourPoints(List<HighlightBounds> bounds) {
     rightPoints.removeAt(i);
   }
 
-  // 2.3 Find all points where yIndex = maxY (bottom boundary)
-  final bottomPoints = matrix[matrix.length - 1]
-      .where((e) => e != null)
-      .map((e) => e!)
-      .toList()
-      .reversed;
-  // 2.4 Find all first points in each row (go bottom to top along the left edge).
-  // This means we iterate by yIndex and take xIndex points near the beginning.
-  final leftPoints = matrix.reversed
-      .map((e) => e.firstWhere((e) => e != null))
-      .nonNulls
-      .toList();
   final leftIndexesToRemove = <int>[];
   for (int i = 1; i < leftPoints.length - 1; i++) {
     if (leftPoints[i].dx != leftPoints[i + 1].dx) {
@@ -144,12 +123,10 @@ List<Offset> _buildContourPoints(List<HighlightBounds> bounds) {
     ...leftPoints,
   ];
 
-  // Filter out duplicate points
-  final uniquePoints = <Offset>{};
+  // 3. Filter out duplicate points
   final mergedPathPoints = <Offset>[];
   for (var point in perimeterPoints) {
-    if (!uniquePoints.contains(point)) {
-      uniquePoints.add(point);
+    if (!mergedPathPoints.contains(point)) {
       mergedPathPoints.add(point);
     }
   }
@@ -191,7 +168,6 @@ List<(Offset, bool?)> _roundContourCorners(List<Offset> contourPoints) {
 
     final prevVector = (prevPoint - point).normalized();
     final nextVector = (nextPoint - point).normalized();
-
     final radius = min(6.0, (nextPoint - point).length / 2);
     final pointCloseToNext = (nextVector * radius) + point;
     final pointCloseToPrev = (prevVector * radius) + point;
